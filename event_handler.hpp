@@ -4,10 +4,6 @@
 
 using namespace std;
 
-typedef function<void(string)>   delegator_t;
-typedef function<void(void*)>     callback_t;
-typedef function<void(void*)>     lambda_t;
-
 template<typename T, typename T2> class EventHandler {
 
     private:
@@ -29,6 +25,24 @@ template<typename T, typename T2> class EventHandler {
 			} else {
 				cout << "delete this? : " << event_name << endl;
 			}
+		};
+
+		void register_event(string e_name, T cb) {
+			cout << __FUNCTION__ << "(" << e_name << ") be called." << endl;
+			
+			EventHandler* iter = this;
+			
+			if( !event_name.empty() && callback != NULL ) {
+				while( iter->next != NULL ) {
+					iter = iter->next;
+				}
+				iter->next = new EventHandler<T, T2>();
+				iter = iter->next;
+			} 
+
+			iter->event_name = e_name;
+			iter->callback = cb;
+
 		};
 
 		void register_event(string e_name, T cb, T2 data) {
@@ -53,10 +67,22 @@ template<typename T, typename T2> class EventHandler {
 		void rewind_event() {
 			cout << __FUNCTION__ << "() be called." << endl;
 			EventHandler* iter = this;
-			do {
-				iter = iter->next;
-				iter->callback(iter->data);
-			} while( iter->next != NULL );
+			if( !event_name.empty() && callback != NULL ) {
+				do {
+					iter->callback((T2)iter->data);
+					iter = iter->next;
+				} while( iter != NULL );
+			}
+		}
+		void rewind_event(T2 data) {
+			cout << __FUNCTION__ << "() be called." << endl;
+			EventHandler* iter = this;
+			if( !event_name.empty() && callback != NULL ) {
+				do {
+					iter->callback((T2)data);
+					iter = iter->next;
+				} while( iter != NULL );
+			}
 		}
 
 		void action_event() {
