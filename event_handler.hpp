@@ -1,60 +1,100 @@
-#include <stdio.h>
-#include "event_handler.hpp"
+#include <functional>
+#include <string>
+#include <iostream>
 
-typedef function<void(string)>   delegator_t;
-typedef function<void(void*)>   callback_t;
-typedef function<void(void*)>     lambda_t;
-EventHandler<delegator_t, string> *g_delegator_listeners;
-EventHandler<callback_t, void*> *g_callback_listeners;
-EventHandler<lambda_t, void*> *g_lambda_listeners;
-void run();
+using namespace std;
 
-void delegator__process_A(string data) {
-	fprintf(stderr, "%s() delegator's data: %s\n", __FUNCTION__, data.c_str());
+template<typename T, typename T2> class EventHandler {
+
+    private:
+        string event_name;
+        T callback;
+		T2 data;
+        class EventHandler* next;
+    
+	public:
+        EventHandler() : event_name(""), callback(NULL), next(NULL) {
+			cout << __FUNCTION__ << "() be called." << endl;
+		};
+
+        ~EventHandler() {
+			cout << __FUNCTION__ << "() be called." << endl;
+			if(next != NULL) {
+				cout << "delete : " << next->event_name << endl;
+				delete next;
+			} else {
+				cout << "delete this? : " << event_name << endl;
+			}
+		};
+
+		void register_event(string e_name, T cb) {
+			cout << __FUNCTION__ << "(" << e_name << ") be called." << endl;
+			
+			EventHandler* iter = this;
+			
+			if( !event_name.empty() && callback != NULL ) {
+				while( iter->next != NULL ) {
+					iter = iter->next;
+				}
+				iter->next = new EventHandler<T, T2>();
+				iter = iter->next;
+			} 
+
+			iter->event_name = e_name;
+			iter->callback = cb;
+
+		};
+
+		void register_event(string e_name, T cb, T2 data) {
+			cout << __FUNCTION__ << "(" << e_name << ") be called." << endl;
+			
+			EventHandler* iter = this;
+			
+			if( !event_name.empty() && callback != NULL ) {
+				while( iter->next != NULL ) {
+					iter = iter->next;
+				}
+				iter->next = new EventHandler<T, T2>();
+				iter = iter->next;
+			} 
+
+			iter->event_name = e_name;
+			iter->callback = cb;
+			iter->data = data;
+
+		};
+
+		void rewind_event() {
+			cout << __FUNCTION__ << "() be called." << endl;
+			EventHandler* iter = this;
+			if( !event_name.empty() && callback != NULL ) {
+				do {
+					iter->callback((T2)iter->data);
+					iter = iter->next;
+				} while( iter != NULL );
+			}
+		}
+		void rewind_event(T2 data) {
+			cout << __FUNCTION__ << "() be called." << endl;
+			EventHandler* iter = this;
+			if( !event_name.empty() && callback != NULL ) {
+				do {
+					iter->callback((T2)data);
+					iter = iter->next;
+				} while( iter != NULL );
+			}
+		}
+
+		void action_event() {
+			cout << __FUNCTION__ << "() be called." << endl;
+		}
+
+		void filter_event(string e_name) {
+			cout << __FUNCTION__ << "(" << e_name << ") be called." << endl;
+			EventHandler* iter = this;
+			do {
+				iter = iter->next;
+				if(iter->event_name == e_name) iter->callback("TEST iter");
+			} while( iter->next != NULL );
+		}
 };
-
-void cb__test(void* data) {
-	fprintf(stderr, "%s() callback's data: %d\n", __FUNCTION__, data);
-};
-
-int main(int argc, char **argv)
-{
-	// 1. INIT
-	g_delegator_listeners = new EventHandler<delegator_t, string>();
-	g_callback_listeners = new EventHandler<callback_t, void*>();
-	g_lambda_listeners = new EventHandler<lambda_t, void*>(); 
-
-	// 2. CREATE
-	g_delegator_listeners->register_event("delegator test", delegator__process_A, R"({"message" : 123 })");
-	// g_delegator_listeners->register_event("delegator test2", delegator__process_A, R"({"data" : 123 })");
-	g_callback_listeners->register_event("callback test", cb__test);
-	g_callback_listeners->register_event("callback test2", cb__test);
-	g_callback_listeners->register_event("callback test3", cb__test);
-	string capture = "captured data";
-	g_lambda_listeners->register_event("lambda test", [&capture](void* data){
-		fprintf(stderr, "%s() lambda's data: %s \t and captured data: %s\n", __FUNCTION__, data, capture.c_str());
-	}, (void*)"123");
-
-	// 3. RUN
-	run();	
-
-	// 4. DONE
-	delete g_delegator_listeners;
-	delete g_callback_listeners;
-	delete g_lambda_listeners;
-	return 0;
-}
-
-void run() {
-	cout << "delegator - FIRST" << endl;
-	g_delegator_listeners->rewind_event();
-	cout << "delegator - SECOND" << endl;
-	g_delegator_listeners->rewind_event();
-
-	cout << "callback - FIRST" << endl;
-	g_callback_listeners->rewind_event((void*)123);
-
-	cout << "lambda - FIRST" << endl;
-	g_lambda_listeners->rewind_event();
-	g_lambda_listeners->rewind_event((void*)"asdf");
-}
